@@ -1,5 +1,8 @@
  // Configuración
         const API_BASE_URL = 'https://datasetsia.onrender.com'; // Reemplaza con tu URL
+        //const API_BASE_URL = 'http://localhost:3001'; // Reemplaza con tu URL
+        let emotionChart = null;
+
         const CATEGORIES = {
             positivo: ['alegría', 'felicidad', 'amor', 'gratitud', 'esperanza', 'calma'],
             negativo: ['tristeza', 'enojo', 'frustración', 'ansiedad', 'estrés', 'vergüenza', 'envidia', 'culpa','aburrimiento'],
@@ -102,7 +105,7 @@ async function loadStats() {
         renderStats(data);
         
         // Ajustar intervalo dinámico basado en si fue caché
-        const nextPoll = cached ? POLL_INTERVAL * 1.5 : POLL_INTERVAL;
+        const nextPoll = cached ? POLL_INTERVAL * 1.6 : POLL_INTERVAL;
         setTimeout(loadStats, nextPoll);
     } catch (error) {
         console.error("Error fetching stats:", error);
@@ -117,6 +120,63 @@ async function loadStats() {
         isFetching = false;
     }
 }
+async function loadRankingAutores() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/ranking-autores`);
+    const result = await response.json();
+
+    if (!result.success || !result.data) return;
+
+    const list = document.getElementById("rankingList");
+    if (!list) return;
+
+    list.innerHTML = '';
+
+    if (result.data.length === 0) {
+      list.innerHTML = '<li class="list-group-item text-center">Aún no hay contribuciones</li>';
+      return;
+    }
+
+    result.data.forEach((item, index) => {
+      const li = document.createElement('li');
+      li.className = 'list-group-item ranking-item d-flex justify-content-between align-items-center';
+      
+      const medalEmoji = ['🥇', '🥈', '🥉'][index] || '';
+      const medalSpan = document.createElement('span');
+      medalSpan.className = 'medal';
+      medalSpan.textContent = medalEmoji;
+      
+      const nameSpan = document.createElement('span');
+      nameSpan.innerHTML = `<strong>${item._id}</strong>`;
+      
+      const badgeSpan = document.createElement('span');
+      badgeSpan.className = 'badge bg-success rounded-pill contributions-badge';
+      badgeSpan.textContent = `${item.count} ${item.count === 1 ? 'contribución' : 'contribuciones'}`;
+      
+      const leftDiv = document.createElement('div');
+      leftDiv.className = 'd-flex align-items-center';
+      leftDiv.appendChild(medalSpan);
+      leftDiv.appendChild(nameSpan);
+      
+      li.appendChild(leftDiv);
+      li.appendChild(badgeSpan);
+      
+      list.appendChild(li);
+    });
+  } catch (error) {
+    console.error("Error al cargar el ranking de autores:", error);
+    list.innerHTML = '<li class="list-group-item text-center text-danger">Error cargando el ranking</li>';
+  }
+}
+
+// Modificar el event listener del DOM para que solo muestre el ranking
+document.addEventListener('DOMContentLoaded', () => {
+    loadCategories();
+    loadRankingAutores(); // Solo cargar el ranking
+    
+    // Opcional: Actualizar el ranking periódicamente
+    setInterval(loadRankingAutores, POLL_INTERVAL);
+});
 
 // Renderizado optimizado
 function renderStats(stats) {
@@ -169,6 +229,21 @@ function renderStats(stats) {
     `;
     fragment.appendChild(lastContribs);
     
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadCategories();
+    loadStats();
+    loadEmotionStats();
+    loadRankingAutores();
+
+    setInterval(() => {
+        loadStats();            // actualiza estadísticas
+        loadEmotionStats();     // actualiza gráfica
+        loadRankingAutores();   // actualiza ranking
+    }, POLL_INTERVAL);
+});
+
     // Actualizar el DOM una sola vez
     statsContainer.innerHTML = '';
     statsContainer.appendChild(fragment);
